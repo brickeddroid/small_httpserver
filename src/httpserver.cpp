@@ -2,7 +2,6 @@
 
 #include "httpconstants.hpp"
 
-namespace YatePlugin {
 HttpServer::HttpServer(const std::string host, std::uint16_t port)
     : m_host(host),
       m_port(port)
@@ -333,5 +332,3 @@ void HttpServer::listen_socket(std::vector<std::future<void>> &futures, SOCKET &
     }
 
 }
-
-} // endof namespace YatePlugin

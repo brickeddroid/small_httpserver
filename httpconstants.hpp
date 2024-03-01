@@ -6,7 +6,6 @@
 #include <string>
 #include <map>
 
-namespace YatePlugin {
 
 enum class HttpVersion {
     Http_09 = 9,
@@ -68,5 +67,4 @@ HttpVersion version_from_string(const std::string& ver_str);
 HttpStatusCode status_from_string(const std::string& sta_str);
 HttpMethod method_from_string(const std::string& met_str);
 
-} // endofo namespace YatePlugin
 #endif

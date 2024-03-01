@@ -1,6 +1,5 @@
 #include "../httpmessage.hpp"
 #include <iostream>
-namespace YatePlugin {
 
 void exitWithError(const char* msg){
     std::cout << "ERROR: " << msg << std::endl;
@@ -134,6 +133,4 @@ std::string HttpResponse::headline(){
         << std::to_string((int)m_status)  << " "
         << status_to_string(m_status);
     return oss.str();
-}
-
 }

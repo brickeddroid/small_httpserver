@@ -1,7 +1,5 @@
 #include "../httpconstants.hpp"
 
-namespace YatePlugin {
-
 const std::map<HttpVersion, std::string> http_version_map_to_string = {
     { HttpVersion::Http_09, "HTTP/0.9" },
     { HttpVersion::Http_10, "HTTP/1.0" },
@@ -149,4 +147,3 @@ HttpMethod method_from_string(const std::string& met_str){
     return http_method_map_from_string.at(met_str);
 }
 
-} // endof namespace YatePlugin

@@ -28,7 +28,6 @@ typedef int SOCKET;
 
 #include "httpmessage.hpp"
 
-namespace YatePlugin {
 
 static constexpr const unsigned int PORT = 5000;
 static constexpr const unsigned int CLIENTS_MAX_NUM = 5;
@@ -67,7 +66,5 @@ private:
 
     std::map<std::string, std::map<HttpMethod, HttpUriHandler_t>> m_uri_handlers;
 };
-
-}
 
 #endif

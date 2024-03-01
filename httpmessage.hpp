@@ -5,8 +5,6 @@
 #include <string>
 #include <sstream>
 
-namespace YatePlugin {
-
 void exitWithError(const char* msg);
 
 class HttpMessage {
@@ -65,6 +63,5 @@ private:
 public:
     HttpResponse();
 };
-} // endof namespace YatePlugin
 
 #endif
