@@ -1,0 +1,29 @@
+* {
+    font-family: helvetica, sans;
+}
+
+main {
+    display: grid;
+    grid-template-areas: 'tree main main main main main';
+}
+
+.tree {
+    grid-area: 'tree';
+}
+
+.textview {
+    grid-area: 'main';
+}
+
+#text_div {
+    width: 100%;
+    height: 100%;
+    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+    box-sizing: border-box;
+    resize: none;
+    min-width: 640px;
+    min-height: 480px;
+    font-family: mono;
+}
+

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="">
+    <head>
+        <meta charset="utf-8">
+        <title></title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body onload="dir_request()">
+      <header>
+        <h1>Y(et) A(nother) T(ext) E(ditor)</h1>
+        <div class="menu">
+            <input type="text"/>
+            <button onclick="open_file(this.previousElementSibling.value)">Open</button>
+        </div>
+      </header>
+      <main>
+          <div class="tree">
+              <ul id="dir_tree">
+              </ul>
+          </div>
+          <div class="main">
+              <pre id="text_div" contenteditable="true"></pre>
+          </div>
+      </main>
+      <footer></footer>
+    </body>
+    <script>
+    function open_file(filename)
+    {
+        fetch('./open?file=' + filename)
+            .then((response) => {
+                response.text().then((data) => {
+                    const regex = /(\<\/?[a-z]\>?)/
+                    const new_data = data.replace(regex, "<span style='color:red;'>$1</span>")
+                    document.querySelector("#text_div").textContent = data;
+                });
+            })
+            .catch((err) => {  })
+    }
+    function dir_request()
+    {
+        console.log("Request...");
+        fetch('./style.css')
+            .then((response) => {
+                response.text().then((data) => {
+                    const regex = /(font)/
+                    const new_data = data.replace(regex, "<span style='color:red;'>$1</span>$2")
+                    document.querySelector("#text_div").textContent = new_data;
+                });
+            })
+            .catch((err) => {  });
+    }
+    </script>
+</html>
