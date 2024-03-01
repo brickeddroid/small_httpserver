@@ -18,6 +18,7 @@ protected:
     std::string m_path;
 public:
     HttpMessage();
+    ~HttpMessage() = default;
 
     void set_version(HttpVersion version);
     HttpVersion version();
@@ -51,6 +52,7 @@ private:
     virtual std::string headline();
 public:
     HttpRequest();
+    ~HttpRequest() = default;
     const std::string& path() const;
     const HttpMethod& method() const;
     std::string query_parameter(const std::string& key) const;
@@ -62,6 +64,7 @@ private:
     virtual std::string headline();
 public:
     HttpResponse();
+    ~HttpResponse() = default;
 };
 
 #endif
