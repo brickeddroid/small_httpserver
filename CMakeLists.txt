@@ -9,10 +9,19 @@ project(HttpServer)
 # Hinzufügen von Quelldateien
 add_library(httpserver
     STATIC
-        src/httpserver.cpp
-        src/httpmessage.cpp
-        src/httpconstants.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/httpmessage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/httpconstants.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/httpserver.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/httpmessage.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/httpconstants.hpp
 )
 
 # Hinzufügen des 'include'-Verzeichnisses
-target_include_directories(httpserver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(httpserver
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_features(httpserver PUBLIC cxx_std_20)
