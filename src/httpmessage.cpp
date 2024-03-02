@@ -41,7 +41,7 @@ void HttpMessage::parse_header(const std::string& headers){
         std::string value = head_line.substr(delimiter + 2);
         add_header(key, value);
 
-        std::cout << "Header: " << head_line << "| delimiter " << delimiter <<std::endl;
+        //std::cout << "Header: " << head_line << "| delimiter " << delimiter <<std::endl;
     }
 }
 
@@ -94,7 +94,7 @@ void HttpMessage::from_string(const std::string& http_message){
     int lpos = http_message.find("\r\n\r\n", 0) + 4;
     std::string body = http_message.substr(lpos);
 */
-    std::cout << "Headline: " << headline() << std::endl;
+    //std::cout << "Headline: " << headline() << std::endl;
 }
 
 
