@@ -133,7 +133,7 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
             http_response = cit->second(http_request);
 
             const std::string& response = http_response.to_string();
-            bytes_sent = send(client_sock, response.c_str(), response.length()+1, 0);
+            bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
             std::cout << "sent " << bytes_sent << " bytes| length " << response.length() << std::endl << response << std::endl;
 
         }
