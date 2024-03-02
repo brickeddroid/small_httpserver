@@ -7,7 +7,7 @@ void exitWithError(const char* msg){
 }
 
 HttpMessage::HttpMessage()
-    : m_version(HttpVersion::Http_10),
+    : m_version(HttpVersion::Http_11),
       m_status(HttpStatusCode::NotImplemented)
 {}
 
@@ -30,9 +30,25 @@ std::string HttpMessage::header(const std::string& key) const {
     if(m_headers.count(key) > 0) return m_headers.at(key);
     return std::string();
 }
+
+void HttpMessage::parse_header(const std::string& headers){
+    std::istringstream iss(headers);
+    std::string head_line;
+    while(std::getline(iss, head_line)){
+        int delimiter = head_line.find(':');
+        if(delimiter == -1) break;
+        std::string key = head_line.substr(0, delimiter);
+        std::string value = head_line.substr(delimiter + 2);
+        add_header(key, value);
+
+        std::cout << "Header: " << head_line << "| delimiter " << delimiter <<std::endl;
+    }
+}
+
 void HttpMessage::set_content(const std::string& content){
     m_content = std::move(content);
 }
+
 const std::string& HttpMessage::content(){
     return m_content;
 }
@@ -54,7 +70,17 @@ void HttpMessage::from_string(const std::string& http_message){
     std::istringstream iss(http_message);
     std::string head_line;
     std::getline(iss, head_line);
-    parse_headline(head_line);
+    int lpos = 0,
+        rpos = http_message.find("\r\n");
+
+    parse_headline(http_message.substr(lpos, rpos));
+    lpos = rpos + 2;
+    rpos = http_message.find("\r\n\r\n");
+    parse_header(http_message.substr(lpos, rpos));
+    lpos = rpos + 4;
+    set_content(http_message.substr(lpos));
+
+/*
     for(std::string line; std::getline(iss, line);){
         std::cout << "LINE " << line << std::endl;
         if(line[0] == 13){
@@ -67,7 +93,8 @@ void HttpMessage::from_string(const std::string& http_message){
     }
     int lpos = http_message.find("\r\n\r\n", 0) + 4;
     std::string body = http_message.substr(lpos);
-    std::cout << "BODY: " << body << std::endl;
+*/
+    std::cout << "Headline: " << headline() << std::endl;
 }
 
 

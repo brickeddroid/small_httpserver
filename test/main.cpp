@@ -4,8 +4,6 @@
 
 #include "httpserver.hpp"
 
-using namespace YatePlugin;
-
 int main(int argc, const char* argv[]) {
 
     //std::cout << YatePlugin::Esper2ToString(YatePlugin::Esper2::Unu) << std::endl;
@@ -13,7 +11,7 @@ int main(int argc, const char* argv[]) {
     std::vector<std::future<void>> futures;
     bool accepting = false;
     SOCKET server_sock;
-    HttpServer server("0.0.0.0", 8082);
+    HttpServer server("0.0.0.0", 8083);
 
     auto provide_file = [](const HttpRequest& http_request) -> HttpResponse {
         std::cout << "Preparing file for serving..." << http_request.path() << std::endl;
@@ -37,7 +35,7 @@ int main(int argc, const char* argv[]) {
             http_response.set_content(data);
         } else {
             http_response.set_status_code(HttpStatusCode::NotFound);
-            std::cout << "Cannot open file\n";
+            std::cout << "Cannot open file " << path << std::endl;
         }
         http_response.add_header("Content-Length", std::to_string(response_content.length()));
         http_response.add_header("Content-Type", mime_type);

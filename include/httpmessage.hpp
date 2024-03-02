@@ -28,6 +28,7 @@ public:
 
     void add_header(const std::string& key, const std::string& value);
     std::string header(const std::string& key) const;
+    void parse_header(const std::string& headers);
 
     void set_content(const std::string& content);
     const std::string& content();

@@ -6,6 +6,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(HttpServer)
 
+#set(YATE_PROJECT_BUILD_TESTING true)
+
 # Hinzufügen von Quelldateien
 add_library(httpserver
     STATIC
@@ -17,6 +19,14 @@ add_library(httpserver
         ${CMAKE_CURRENT_SOURCE_DIR}/include/httpmessage.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/httpconstants.hpp
 )
+
+
+
+if(YATE_PROJECT_BUILD_TESTING)
+  add_subdirectory(test)
+  # or alternatively, `include(CTest)`, if you want to use CDash
+  # https://cmake.org/cmake/help/book/mastering-cmake/chapter/CDash.html
+endif()
 
 # Hinzufügen des 'include'-Verzeichnisses
 target_include_directories(httpserver
