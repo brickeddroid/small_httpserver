@@ -21,6 +21,7 @@ add_library(httpserver
 # Hinzufügen des 'include'-Verzeichnisses
 target_include_directories(httpserver
     PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
