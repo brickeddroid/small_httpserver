@@ -124,7 +124,7 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
             if(cit == it->second.end()){
                 std::cout << "Method not registered " << method_to_string(http_request.method()) << std::endl;
                 http_response.set_status_code(HttpStatusCode::MethodNotAllowed);
-                http_response.set_version(HttpVersion::Http_10);
+                http_response.set_version(HttpVersion::Http_11);
                 std::string response = http_response.to_string();
                 bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
                 continue;
@@ -135,7 +135,6 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
             const std::string& response = http_response.to_string();
             bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
             std::cout << "sent " << bytes_sent << " bytes| length " << response.length() << std::endl << response << std::endl;
-
         }
 
     }

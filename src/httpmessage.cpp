@@ -56,6 +56,7 @@ void HttpMessage::from_string(const std::string& http_message){
     std::getline(iss, head_line);
     parse_headline(head_line);
     for(std::string line; std::getline(iss, line);){
+        std::cout << "LINE " << line << std::endl;
         if(line[0] == 13){
             continue;
         }
@@ -124,7 +125,7 @@ void HttpResponse::parse_headline(const std::string& head_line){
     std::string version, status, status_string;
     std::istringstream iss(head_line);
     iss >> version >> status >> status_string;
-    std::cout << "Request version: " << version << "|status: " << status << "|status_s: " << status_string << std::endl;
+    std::cout << "Response version: " << version << "|status: " << status << "|status_s: " << status_string << std::endl;
 }
 
 std::string HttpResponse::headline(){
