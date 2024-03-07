@@ -6,7 +6,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(HttpServer)
 
-set(HTTP_SERVER_PROJECT_BUILD_TESTING true)
+# set(HTTP_SERVER_PROJECT_BUILD_TESTING true)
 
 # Hinzufügen von Quelldateien
 add_library(httpserver
