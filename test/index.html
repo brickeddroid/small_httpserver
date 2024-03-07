@@ -25,28 +25,6 @@
       <footer></footer>
     </body>
     <script>
-    /*
-    <!--
-    const evtSource = new EventSource("event");
-    evtSource.ondisconnect = (e) => {
-        console.log("Successfully connected");
-    };
-    evtSource.onconnect = (e) => {
-        console.log("Successfully connected");
-    };
-    evtSource.onmessage = (e) => {
-        console.log("Edata");
-        console.log(e.data);
-    };
-    evtSource.onerror = (e) => {
-        //console.log("Edata");
-        console.error(e.message);
-    };
-    evtSource.addEventListener("ping", (event) => {
-        console.log("PING");
-    });
--->
-*/
     function open_file(filename)
     {
         fetch('./open?file=' + filename)
