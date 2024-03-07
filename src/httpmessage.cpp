@@ -1,14 +1,17 @@
-#include "../include/httpmessage.hpp"
+#include <httpmessage.hpp>
 #include <iostream>
 
-void exitWithError(const char* msg){
-    std::cout << "ERROR: " << msg << std::endl;
-    exit(1);
-}
+bool HttpMessage::include_head() { return !m_body_only || m_header_only; }
+bool HttpMessage::include_body() { return m_body_only || !m_header_only; }
+
+void HttpMessage::set_head_only(bool h_only) { m_header_only = h_only; }
+void HttpMessage::set_body_only(bool b_only) { m_body_only = b_only; }
 
 HttpMessage::HttpMessage()
     : m_version(HttpVersion::Http_11),
-      m_status(HttpStatusCode::NotImplemented)
+      m_status(HttpStatusCode::NotImplemented),
+      m_header_only(true),
+      m_body_only(true)
 {}
 
 void HttpMessage::set_version(HttpVersion version){
@@ -40,8 +43,6 @@ void HttpMessage::parse_header(const std::string& headers){
         std::string key = head_line.substr(0, delimiter);
         std::string value = head_line.substr(delimiter + 2);
         add_header(key, value);
-
-        //std::cout << "Header: " << head_line << "| delimiter " << delimiter <<std::endl;
     }
 }
 
@@ -53,14 +54,16 @@ const std::string& HttpMessage::content(){
     return m_content;
 }
 
-std::string HttpMessage::to_string(bool include_content){
+std::string HttpMessage::to_string(bool includ_content){
     std::ostringstream oss;
-    oss << headline() << "\r\n";
-    for(const auto& it : m_headers){
-        oss << it.first << ": " << it.second << "\r\n";
+    if(include_head()){
+        oss << headline() << "\r\n";
+        for(const auto& it : m_headers){
+            oss << it.first << ": " << it.second << "\r\n";
+        }
+        oss << "\r\n";
     }
-    oss << "\r\n";
-    if(include_content){
+    if(include_body() || includ_content){
         oss << m_content;
     }
     return oss.str();
@@ -79,22 +82,6 @@ void HttpMessage::from_string(const std::string& http_message){
     parse_header(http_message.substr(lpos, rpos));
     lpos = rpos + 4;
     set_content(http_message.substr(lpos));
-
-/*
-    for(std::string line; std::getline(iss, line);){
-        std::cout << "LINE " << line << std::endl;
-        if(line[0] == 13){
-            continue;
-        }
-        int pos = line.find(':');
-        std::string key = line.substr(0, pos);
-        std::string value = line.substr(pos+2);
-        add_header(key, value);
-    }
-    int lpos = http_message.find("\r\n\r\n", 0) + 4;
-    std::string body = http_message.substr(lpos);
-*/
-    //std::cout << "Headline: " << headline() << std::endl;
 }
 
 
@@ -116,9 +103,9 @@ void HttpRequest::parse_headline(const std::string& head_line){
     std::istringstream iss(head_line);
     iss >> method >> path >> version;
     m_method = method_from_string(method);
-    std::istringstream piss(path);
-    std::getline(piss, m_path, '?');
-    while(std::getline(piss, query_string, '&')){
+    std::istringstream p_iss(path);
+    std::getline(p_iss, m_path, '?');
+    while(std::getline(p_iss, query_string, '&')){
         int pos = query_string.find('=');
         std::string pkey = query_string.substr(0, pos);
         std::string pvalue = query_string.substr(pos+1);
@@ -146,7 +133,9 @@ const HttpMethod& HttpRequest::method() const {
 
 HttpResponse::HttpResponse()
     : HttpMessage()
-{}
+{
+
+}
 
 void HttpResponse::parse_headline(const std::string& head_line){
     std::string version, status, status_string;

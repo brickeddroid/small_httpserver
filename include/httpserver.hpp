@@ -1,6 +1,8 @@
 #ifndef HTTPSERVER_HPP
 #define HTTPSERVER_HPP
 
+#include <httpmessage.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -26,45 +28,50 @@ typedef int SOCKET;
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
-#include "httpmessage.hpp"
-
 
 static constexpr const unsigned int PORT = 5000;
 static constexpr const unsigned int CLIENTS_MAX_NUM = 5;
 static constexpr const unsigned int CLIENTS_QUEUE_NUM = 0;
 
 
-//typedef std::string Uri_t;
-using HttpUriHandler_t = std::function<HttpResponse(const HttpRequest&)>;
+using HttpUriHandler_t = std::function<void(const HttpRequest&, HttpResponse&)>;
 
 class HttpServer {
 public:
     HttpServer(const std::string host, std::uint16_t port);
     ~HttpServer();
 
-    void initialize_socket();
 
-    void register_uri_handler(std::string uri, HttpMethod method, const HttpUriHandler_t uri_handler);
+    void register_uri_handler(const std::string& uri, HttpMethod method, const HttpUriHandler_t uri_handler);
 
-    void handle_client(SOCKET client_sock, sockaddr_in client);
+    void start();
+    void resume();
+    void stop();
 
-    void bind_socket(SOCKET &server_sock);
-
-    void open_socket(SOCKET &server_sock, bool &accepting);
-
-    void close_socket(SOCKET &server_sock, bool &accepting);
-
-    void clear_futures(std::vector<std::future<void>> &futures);
-
-    void listen_socket(std::vector<std::future<void>> &futures, SOCKET &server_sock, bool& accepting);
+    //void add_handler(HttpHandler* const server_handler);
 
 private:
     std::string m_host;
     std::uint16_t m_port;
+    bool m_accepting;
 
     SOCKET m_socket;
 
     std::map<std::string, std::map<HttpMethod, HttpUriHandler_t>> m_uri_handlers;
+    std::vector<std::future<void>> m_clients;
+
+    void handle_client(SOCKET client_sock, sockaddr_in client);
+
+#ifdef _WIN32
+    void initialize_socket();
+#endif
+    void bind_socket();
+    void open_socket();
+    void close_socket();
+    void listen_socket();
+
+    void add_client(SOCKET client_id, sockaddr_in& client_addr);
+    void clear_clients();
 };
 
 #endif

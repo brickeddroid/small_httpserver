@@ -1,4 +1,4 @@
-#include "../include/httpconstants.hpp"
+#include <httpconstants.hpp>
 
 const std::map<HttpVersion, std::string> http_version_map_to_string = {
     { HttpVersion::Http_09, "HTTP/0.9" },
@@ -48,7 +48,7 @@ const std::map<HttpMethod, std::string> http_method_map_to_string = {
     {HttpMethod::OPTIONS, "OPTIONS"},
     {HttpMethod::TRACE,   "TRACE"},
     {HttpMethod::PATCH,   "PATCH"},
-    {HttpMethod::UNKNOWN, "UNKNOWN"}
+    {HttpMethod::ANY, "ANY"}
 };
 
 const std::map<std::string, HttpVersion> http_version_map_from_string = {
@@ -101,7 +101,7 @@ const std::map<std::string, HttpMethod> http_method_map_from_string = {
     {"OPTIONS", HttpMethod::OPTIONS},
     {"TRACE",   HttpMethod::TRACE},
     {"PATCH",   HttpMethod::PATCH},
-    {"UNKNOWN", HttpMethod::UNKNOWN}
+    {"ANY",     HttpMethod::ANY}
 };
 
 
@@ -121,7 +121,7 @@ std::string status_to_string(HttpStatusCode status) {
 
 std::string method_to_string(HttpMethod method){
     if(http_method_map_to_string.count(method) == 0) {
-        return http_method_map_to_string.at(HttpMethod::UNKNOWN);
+        return http_method_map_to_string.at(HttpMethod::ANY);
     }
     return http_method_map_to_string.at(method);
 }
@@ -142,8 +142,21 @@ HttpStatusCode status_from_string(const std::string& sta_str){
 
 HttpMethod method_from_string(const std::string& met_str){
     if(http_method_map_from_string.count(met_str) == 0) {
-        return HttpMethod::UNKNOWN;
+        return HttpMethod::ANY;
     }
     return http_method_map_from_string.at(met_str);
 }
 
+template <class T>
+std::string HttpConstant<T>::to_string(T e){
+    if(type_map.count(e) == 0) throw std::runtime_error("Not a valid type (type e => string s)");
+    return type_map.at(e);
+}
+template <class T>
+const T HttpConstant<T>::from_string(const std::string& src){
+    if(string_map.count(src) == 0) throw std::runtime_error("Not a valid type (string s => type e)");
+    return string_map.at(src);
+}
+
+template <>
+const std::map<HttpMethod, std::string> HttpMethodClass::string_map = &http_method_map_from_string;

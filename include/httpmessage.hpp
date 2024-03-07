@@ -1,13 +1,14 @@
 #ifndef HTTPMESSAGE_HPP
 #define HTTPMESSAGE_HPP
 
-#include "httpconstants.hpp"
+#include <httpconstants.hpp>
 #include <string>
 #include <sstream>
 
-void exitWithError(const char* msg);
-
 class HttpMessage {
+private:
+    bool include_head();
+    bool include_body();
 protected:
     std::string m_headline;
     std::map<std::string, std::string> m_headers;
@@ -16,6 +17,10 @@ protected:
     HttpStatusCode m_status;
     HttpMethod m_method;
     std::string m_path;
+
+    bool m_header_only;
+    bool m_body_only;
+
 public:
     HttpMessage();
     ~HttpMessage() = default;
@@ -32,6 +37,9 @@ public:
 
     void set_content(const std::string& content);
     const std::string& content();
+
+    void set_head_only(bool h_only);
+    void set_body_only(bool c_only);
 
     std::string to_string(bool include_content = true);
     void from_string(const std::string& http_message);

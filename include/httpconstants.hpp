@@ -1,11 +1,10 @@
 #ifndef HTTPCONSTANTS_HPP
 #define HTTPCONSTANTS_HPP
 
-//#include <cstring>
-//#include <algorithm>
 #include <string>
 #include <map>
 
+#include <stdexcept>
 
 enum class HttpVersion {
     Http_09 = 9,
@@ -56,7 +55,7 @@ enum class HttpMethod {
     OPTIONS,
     TRACE,
     PATCH,
-    UNKNOWN
+    ANY
 };
 
 std::string version_to_string(HttpVersion version);
@@ -66,5 +65,26 @@ std::string method_to_string(HttpMethod method);
 HttpVersion version_from_string(const std::string& ver_str);
 HttpStatusCode status_from_string(const std::string& sta_str);
 HttpMethod method_from_string(const std::string& met_str);
+/*
+class HttpConstant {
+protected:
+    enum Type {};
+    std::map<std::string, Type> m_map_from_string;
+    std::map<Type, std::string> m_map_to_string;
+public:
+    virtual Type from_string(const std::string& source) = 0;
+    virtual std::string to_string(Type source) = 0;
+};
+*/
 
+template <class T>
+class HttpConstant {
+    static const std::map<T, std::string>* type_map;
+    static const std::map<std::string, T>* string_map;
+public:
+    static std::string to_string(T e);
+    static const T from_string(const std::string& src);
+};
+
+typedef HttpConstant<HttpMethod> HttpMethodClass;
 #endif

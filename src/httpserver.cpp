@@ -1,6 +1,7 @@
-#include "../include/httpserver.hpp"
+#include <httpserver.hpp>
+#include <httpconstants.hpp>
 
-#include "../include/httpconstants.hpp"
+#include <stdexcept>
 
 HttpServer::HttpServer(const std::string host, std::uint16_t port)
     : m_host(host),
@@ -14,36 +15,27 @@ HttpServer::~HttpServer() {
 #endif
 }
 
+
+void HttpServer::start()
+{
 #ifdef _WIN32
-void HttpServer::initialize_socket() {
-
-    WSAData wsData;
-    WORD ver = MAKEWORD(2, 2);
-
-    int wsResult = WSAStartup(ver, &wsData);
-
-    if (wsResult != 0) {
-
-        std::cerr << WSAGetLastError() << std::endl;
-
-        WSACleanup();
-        exit(EXIT_FAILURE);
-
-    }
-
-}
-#else
-void HttpServer::initialize_socket(){
-    m_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (m_socket < 0)
-    {
-        std::cerr << "Initialize server socket failed" << std::endl;
-    }
-}
+    initialize_socket();
 #endif
+    resume();
+}
 
-void HttpServer::register_uri_handler(std::string uri, HttpMethod method, const HttpUriHandler_t uri_handler){
-    //m_uri_handlers[uri][method] = uri_handler;
+void HttpServer::resume(){
+    open_socket();
+    bind_socket();
+    listen_socket();
+}
+
+void HttpServer::stop()
+{
+    close_socket();
+}
+
+void HttpServer::register_uri_handler(const std::string& uri, HttpMethod method, const HttpUriHandler_t uri_handler){
     m_uri_handlers[uri].insert(std::make_pair(method, std::move(uri_handler)));
 }
 
@@ -79,27 +71,23 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
         const int bytes_received = recv(client_sock, buf, 4096, 0);
 #ifdef _WIN32
         if (bytes_received == SOCKET_ERROR) {
-
             std::cerr << WSAGetLastError() << std::endl;
-
             WSACleanup();
+            throw std::runtime_error("SOCKET ERROR");
 #else
         if (bytes_received < 0) {
-            exitWithError("SOCKET ERROR");
+            throw std::runtime_error("SOCKET ERROR");
 #endif
         }
         else if (bytes_received == 0) {
-
             std::cout << "client disconnected" << std::endl;
             break;
-
         }
         else {
             std::cout << "send to client" << std::endl;
             std::ostringstream oss;
             HttpRequest http_request;
             HttpResponse http_response;
-            http_response.add_header("Content-Length", "0");
             http_request.from_string(std::string(buf));
             int bytes_sent;
 
@@ -114,6 +102,7 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
             auto it = m_uri_handlers.find(http_request.path());
             if(it == m_uri_handlers.end()){
                 http_response.set_status_code(HttpStatusCode::NotFound);
+                http_response.add_header("Content-Length", "0");
                 std::string response = http_response.to_string();
                 bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
                 std::cout << "Path not registered " << http_request.path() << std::endl;
@@ -130,7 +119,7 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
                 continue;
             }
 
-            http_response = cit->second(http_request);
+            cit->second(http_request, http_response);
 
             const std::string& response = http_response.to_string();
             bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
@@ -141,109 +130,102 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
 
 }
 
-void HttpServer::bind_socket(SOCKET &server_sock) {
+#ifdef _WIN32
+void HttpServer::initialize_socket() {
+
+    WSAData wsData;
+    WORD ver = MAKEWORD(2, 2);
+
+    int wsResult = WSAStartup(ver, &wsData);
+
+    if (wsResult != 0) {
+
+        std::cerr << WSAGetLastError() << std::endl;
+
+        WSACleanup();
+
+        throw std::runtime_error("Socket initialization failed");
+    }
+}
+#endif
+
+void HttpServer::bind_socket() {
 
     int keep_alive = 1;
     int re_use = 1;
+
+    SOCKET status_keep_alive = setsockopt(m_socket, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keep_alive, sizeof(keep_alive));
+    SOCKET status_reuse_addr = setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, (const char*)&re_use, sizeof(re_use));
+
+    if ( status_keep_alive == SOCKET_ERROR ||
+         status_reuse_addr == SOCKET_ERROR ){
+        stop();
 #ifdef _WIN32
-    if (setsockopt(server_sock, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keep_alive, sizeof(keep_alive)) == SOCKET_ERROR) {
-
-        closesocket(server_sock);
         WSACleanup();
-        exit(EXIT_FAILURE);
-
-    }
-
-    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&re_use, sizeof(re_use)) == SOCKET_ERROR) {
-
-        closesocket(server_sock);
-        WSACleanup();
-        exit(EXIT_FAILURE);
-
-    }
-#else
-    if (setsockopt(server_sock, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keep_alive, sizeof(keep_alive)) == -1) {
-
-        close(server_sock);
-        exit(EXIT_FAILURE);
-
-    }
-
-    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&re_use, sizeof(re_use)) == -1) {
-
-        close(server_sock);
-        exit(EXIT_FAILURE);
-
-    }
 #endif
-
+        throw std::runtime_error("SOCKET ERROR");
+    }
     sockaddr_in server;
 
     server.sin_family = AF_INET;
     server.sin_port = htons(m_port);
     inet_pton(AF_INET, m_host.c_str(), &(server.sin_addr.s_addr));
+    memset(&server.sin_zero, 0, 8);
+
 #ifdef _WIN32
     server.sin_addr.S_un.S_addr = INADDR_ANY;
+    if (bind(m_socket, (sockaddr*)&server, sizeof(sockaddr)) == SOCKET_ERROR) {
+        std::cerr << WSAGetLastError() << std::endl;
+        closesocket(m_socket);
+        WSACleanup();
+        throw std::runtime_error("SOCKET ERROR");
+    }
 #else
     server.sin_addr.s_addr = INADDR_ANY;
-#endif
-    memset(&server.sin_zero, 0, 8);
-#ifdef _WIN32
-    if (bind(server_sock, (sockaddr*)&server, sizeof(sockaddr)) == SOCKET_ERROR) {
-        std::cerr << WSAGetLastError() << std::endl;
-        closesocket(server_sock);
-        WSACleanup();
-        exit(EXIT_FAILURE);
-    }
-#else
-    if (bind(server_sock, (sockaddr*)&server, sizeof(sockaddr)) == -1) {
-        std::cerr << "SOCKET ERROR" << std::endl;
-        close(server_sock);
-        exit(EXIT_FAILURE);
+    if (bind(m_socket, (sockaddr*)&server, sizeof(sockaddr)) == -1) {
+        close(m_socket);
+        throw std::runtime_error("SOCKET ERROR");
     }
 #endif
 }
 
-void HttpServer::open_socket(SOCKET &server_sock, bool &accepting) {
+void HttpServer::open_socket() {
 
-    server_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 #ifdef _WIN32
-    if (server_sock == INVALID_SOCKET) {
+    if (m_socket == INVALID_SOCKET) {
         std::cerr << WSAGetLastError() << std::endl;
         WSACleanup();
 #else
-    if (server_sock < 0) {
+    if (m_socket < 0) {
         std::cerr << "INVALID SOCKET" << std::endl;
 #endif
-
-        accepting = false;
-        exit(EXIT_FAILURE);
-
+        m_accepting = false;
+        throw std::runtime_error("INVALID SOCKET");
     }
 
-    accepting = true;
+    m_accepting = true;
 }
-void HttpServer::close_socket(SOCKET &server_sock, bool &accepting) {
+void HttpServer::close_socket() {
 
+    std::cout << "closing server socket" << std::endl;
 #ifdef _WIN32
-    closesocket(server_sock);
+    closesocket(m_socket);
 #else
-    close(server_sock);
+    close(m_socket);
 #endif
-
-    accepting = false;
-
+    m_accepting = false;
 }
 
-void HttpServer::clear_futures(std::vector<std::future<void>> &futures) {
+void HttpServer::clear_clients() {
 
-    std::vector<std::future<void>>::iterator it = futures.begin();
+    std::vector<std::future<void>>::iterator it = m_clients.begin();
 
-    while (it != futures.end()) {
+    while (it != m_clients.end()) {
         auto status = (*it).wait_for(std::chrono::milliseconds(0));
         if (status == std::future_status::ready) {
-            it = futures.erase(it);
+            it = m_clients.erase(it);
         }
         else {
             ++it;
@@ -251,18 +233,26 @@ void HttpServer::clear_futures(std::vector<std::future<void>> &futures) {
     }
 }
 
-void HttpServer::listen_socket(std::vector<std::future<void>> &futures, SOCKET &server_sock, bool& accepting) {
+void HttpServer::add_client(SOCKET client_socket, sockaddr_in& client){
+    m_clients.emplace_back(std::async(std::launch::async, &HttpServer::handle_client, this, client_socket, client));
+    if (m_clients.size() >= CLIENTS_MAX_NUM && m_accepting) {
+        stop();
+    }
+    std::cout << m_clients.size() << " clients connected" << std::endl;
+}
 
-    if (listen(server_sock, CLIENTS_QUEUE_NUM) == SOCKET_ERROR) {
+void HttpServer::listen_socket() {
+
+    if (listen(m_socket, CLIENTS_QUEUE_NUM) == SOCKET_ERROR) {
 #ifdef _WIN32
         std::cerr << WSAGetLastError() << std::endl;
-        closesocket(server_sock);
+        closesocket(m_socket);
         WSACleanup();
 #else
-        std::cerr << "SOCKET_ERROR" << std::endl;
-        close(server_sock);
+        //std::cerr << "SOCKET_ERROR" << std::endl;
+        close(m_socket);
 #endif
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("SOCKET ERROR");
 
     }
     else {
@@ -271,19 +261,19 @@ void HttpServer::listen_socket(std::vector<std::future<void>> &futures, SOCKET &
 
         while (true) {
 
-            if (futures.size() < CLIENTS_MAX_NUM && !accepting) {
+            if (m_clients.size() < CLIENTS_MAX_NUM && !m_accepting) {
 
                 std::cout << "re-opening server socket" << std::endl;
-
-                open_socket(server_sock, accepting);
-                bind_socket(server_sock);
-                listen_socket(futures, server_sock, accepting);
+                //start();
+                open_socket();
+                bind_socket();
+                listen_socket();
 
                 break;
 
             }
 
-            if (accepting) {
+            if (m_accepting) {
 
                 sockaddr_in client;
 
@@ -294,40 +284,27 @@ void HttpServer::listen_socket(std::vector<std::future<void>> &futures, SOCKET &
                 unsigned int client_size = sizeof(client);
 #endif
 
-                SOCKET client_sock = accept(server_sock, (sockaddr*)&client, &client_size);
+                SOCKET client_sock = accept(m_socket, (sockaddr*)&client, &client_size);
 
                 if (client_sock == INVALID_SOCKET) {
 
 
 #ifdef _WIN32
                     std::cerr << WSAGetLastError() << std::endl;
-                    closesocket(server_sock);
+                    closesocket(m_socket);
                     WSACleanup();
 #else
-                    std::cerr << "INVALID SOCKET" << std::endl;
+                    std::cerr << "INVALID SOCKET, closing..." << std::endl;
+                    close(m_socket);
 #endif
-                    exit(EXIT_FAILURE);
+                    throw std::runtime_error("INVALID SOCKET");
 
                 }
 
-                clear_futures(futures);
-
-                futures.emplace_back(std::async(std::launch::async, &HttpServer::handle_client, this, client_sock, client));
-
-                if (futures.size() >= CLIENTS_MAX_NUM && accepting) {
-
-                    std::cout << "closing server socket" << std::endl;
-
-                    close_socket(server_sock, accepting);
-
-                }
-
-                std::cout << futures.size() << " clients connected" << std::endl;
+                //clear_clients(m_clients);
+                add_client(client_sock, client);
 
             }
-
         }
-
     }
-
 }
