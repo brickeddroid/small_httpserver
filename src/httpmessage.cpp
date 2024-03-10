@@ -1,5 +1,6 @@
 #include <httpmessage.hpp>
 #include <iostream>
+#include <regex>
 
 bool HttpMessage::include_head() { return !m_body_only || m_header_only; }
 bool HttpMessage::include_body() { return m_body_only || !m_header_only; }
@@ -20,12 +21,6 @@ void HttpMessage::set_version(HttpVersion version){
 HttpVersion HttpMessage::version(){
     return m_version;
 }
-void HttpMessage::set_status_code(HttpStatusCode status){
-    m_status = status;
-}
-HttpStatusCode HttpMessage::status_code(){
-    return m_status;
-}
 void HttpMessage::add_header(const std::string& key, const std::string& value){
     m_headers[key] = value;
 }
@@ -38,6 +33,9 @@ void HttpMessage::parse_header(const std::string& headers){
     std::istringstream iss(headers);
     std::string head_line;
     while(std::getline(iss, head_line)){
+
+        head_line.erase(std::remove(head_line.begin(), head_line.end(), '\r' ), head_line.end());
+        head_line.erase(std::remove(head_line.begin(), head_line.end(), '\n' ), head_line.end());
         int delimiter = head_line.find(':');
         if(delimiter == -1) break;
         std::string key = head_line.substr(0, delimiter);
@@ -102,7 +100,7 @@ void HttpRequest::parse_headline(const std::string& head_line){
     std::string method, path, version, query_string;
     std::istringstream iss(head_line);
     iss >> method >> path >> version;
-    m_method = method_from_string(method);
+    m_method = Http::Method::from_string(method);
     std::istringstream p_iss(path);
     std::getline(p_iss, m_path, '?');
     while(std::getline(p_iss, query_string, '&')){
@@ -116,9 +114,9 @@ void HttpRequest::parse_headline(const std::string& head_line){
 
 std::string HttpRequest::headline(){
     std::ostringstream oss;
-    oss << method_to_string(m_method) << " "
+    oss << Http::Method::to_string(m_method) << " "
         << m_path  << " "
-        << version_to_string(m_version);
+        << Http::Version::to_string(m_version);
     return oss.str();
 }
 
@@ -134,20 +132,29 @@ const HttpMethod& HttpRequest::method() const {
 HttpResponse::HttpResponse()
     : HttpMessage()
 {
-
 }
 
 void HttpResponse::parse_headline(const std::string& head_line){
     std::string version, status, status_string;
     std::istringstream iss(head_line);
     iss >> version >> status >> status_string;
+    m_version = Http::Version::from_string(version);
+    m_status  = (HttpStatusCode)std::stoi(status);
     std::cout << "Response version: " << version << "|status: " << status << "|status_s: " << status_string << std::endl;
 }
 
 std::string HttpResponse::headline(){
     std::ostringstream oss;
-    oss << version_to_string(m_version) << " "
+    oss << Http::Version::to_string(m_version) << " "
         << std::to_string((int)m_status)  << " "
-        << status_to_string(m_status);
+        << Http::StatusCode::to_string(m_status);
     return oss.str();
+}
+
+HttpStatusCode HttpResponse::status_code(){
+    return m_status;
+}
+
+void HttpResponse::set_status_code(HttpStatusCode status){
+    m_status = status;
 }

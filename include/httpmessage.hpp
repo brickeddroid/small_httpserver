@@ -15,21 +15,19 @@ protected:
     std::string m_content;
     HttpVersion m_version;
     HttpStatusCode m_status;
-    HttpMethod m_method;
     std::string m_path;
 
     bool m_header_only;
     bool m_body_only;
 
+    virtual void parse_headline(const std::string& head_line) = 0;
+    virtual std::string headline() = 0;
 public:
     HttpMessage();
     ~HttpMessage() = default;
 
     void set_version(HttpVersion version);
     HttpVersion version();
-
-    void set_status_code(HttpStatusCode status);
-    HttpStatusCode status_code();
 
     void add_header(const std::string& key, const std::string& value);
     std::string header(const std::string& key) const;
@@ -44,8 +42,6 @@ public:
     std::string to_string(bool include_content = true);
     void from_string(const std::string& http_message);
 
-    virtual void parse_headline(const std::string& head_line) = 0;
-    virtual std::string headline() = 0;
     virtual bool is_valid() {
         return true;
     }
@@ -53,6 +49,7 @@ public:
 
 class HttpRequest : public HttpMessage {
 private:
+    HttpMethod m_method;
     std::map<std::string, std::string> m_query_parameters;
 
     void add_query_parameter(const std::string& key, const std::string& value);
@@ -74,6 +71,9 @@ private:
 public:
     HttpResponse();
     ~HttpResponse() = default;
+
+    HttpStatusCode status_code();
+    void set_status_code(HttpStatusCode status);
 };
 
 #endif
