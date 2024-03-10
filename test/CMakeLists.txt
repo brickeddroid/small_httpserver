@@ -12,4 +12,4 @@ target_link_libraries(main PRIVATE httpserver)
 target_compile_features(main PUBLIC cxx_std_20)
 
 
-file(COPY ./index.html ./style.css DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ./index.html ./style.css DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
