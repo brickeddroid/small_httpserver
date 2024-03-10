@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.7)
 project(HttpServer)
 include(CTest)
 
-set(HTTP_SERVER_PROJECT_BUILD_TESTING true)
-
 # Hinzufügen von Quelldateien
 add_library(httpserver
     STATIC
@@ -31,7 +29,6 @@ if(HTTP_SERVER_PROJECT_BUILD_TESTING)
   # https://cmake.org/cmake/help/book/mastering-cmake/chapter/CDash.html
 endif()
 
-option(BUILD_TESTING "" ON)
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     add_subdirectory(unittests)
 endif()
