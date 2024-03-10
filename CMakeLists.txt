@@ -1,14 +1,8 @@
-#add_library(http_server STATIC httpserver.cpp httpmessage.cpp httpconstants.cpp)
-#target_compile_features(http_server PUBLIC cxx_std_20)
-
-# my_external_lib/CMakeLists.txt
-
 cmake_minimum_required(VERSION 3.7)
 project(HttpServer)
 include(CTest)
 
-#set(HTTP_SERVER_PROJECT_BUILD_TESTING true)
-#set(HTTP_SERVER_PROJECT_BUILD_UNIT_TESTING true)
+set(HTTP_SERVER_PROJECT_BUILD_TESTING true)
 
 # Hinzufügen von Quelldateien
 add_library(httpserver
@@ -37,11 +31,6 @@ if(HTTP_SERVER_PROJECT_BUILD_TESTING)
   # https://cmake.org/cmake/help/book/mastering-cmake/chapter/CDash.html
 endif()
 
-#if(HTTP_SERVER_PROJECT_BUILD_UNIT_TESTING)
-#  add_subdirectory(unittests)
-#  # or alternatively, `include(CTest)`, if you want to use CDash
-#  # https://cmake.org/cmake/help/book/mastering-cmake/chapter/CDash.html
-#endif()
 option(BUILD_TESTING "" ON)
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     add_subdirectory(unittests)
