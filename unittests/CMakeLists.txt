@@ -6,7 +6,7 @@ set(EXTERNAL_INSTALLATION_DIR ${CMAKE_BINARY_DIR}/thirdparty/utpp/src)
 
 ExternalProject_Add(utpp
     PREFIX ${EXTERNAL_INSTALLATION_DIR}
-    GIT_REPOSITORY https://github.com/neacsum/utpp
+    GIT_REPOSITORY https://github.com/brickeddroid/utpp
     GIT_TAG master
     TIMEOUT 10
     SOURCE_DIR ${EXTERNAL_INSTALLATION_DIR}/utpp
