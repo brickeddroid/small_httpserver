@@ -32,23 +32,29 @@ target_link_libraries(unittest
         httpserver
 )
 
+set(RUN_ALL_TESTS, true)
+
 if(BUILD_TESTING_HTTP)
     add_test(
         NAME ut_suite_httpserver
         COMMAND $<TARGET_FILE:unittest> HttpMessageTests
     )
-else()
-    if(BUILD_TESTING_ENUM)
-        add_test(
-            NAME ut_suite_enumstringify
-            COMMAND $<TARGET_FILE:unittest> EnumStringificationTests
-        )
-    else()
-        add_test(
-            NAME ut_overall
-            COMMAND $<TARGET_FILE:unittest>
-        )
-    endif()
+    set(RUN_ALL_TESTS, false)
+endif()
+
+if(BUILD_TESTING_ENUM)
+    add_test(
+        NAME ut_suite_enumstringify
+        COMMAND $<TARGET_FILE:unittest> EnumStringificationTests
+    )
+    set(RUN_ALL_TESTS, false)
+endif()
+
+if(RUN_ALL_TESTS)
+    add_test(
+        NAME ut_overall
+        COMMAND $<TARGET_FILE:unittest>
+    )
 endif()
 
 # Hinzufügen des 'include'-Verzeichnisses
