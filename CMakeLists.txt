@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.7)
 
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     project(HttpServer)
+    message("EXTERNAL PROJECT TRIGGERED")
     include(CTest)
 
     if(HTTP_SERVER_PROJECT_BUILD_TESTING)
