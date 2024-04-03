@@ -15,15 +15,65 @@ main {
     grid-area: 'main';
 }
 
+textarea {
+    line-height: 21px;
+    overflow-y: hidden;
+    padding: 0;
+    border: 0;
+    background: #282a3a;
+    color: #FFF;
+    min-width: 800px;
+    outline: none;
+    resize: none;
+    font-family: monospace;
+    /*width: fit-content;*/
+}
+
+.editor {
+    display: flex;
+    gap: 10px;
+    font-family: monospace !important;
+    line-height: 21px;
+    background: #282a3a;
+    border-radius: 2px;
+    padding: 20px 10px;
+    overflow: auto;
+    height: 480px;
+}
+
+
+.line-numbers {
+    padding-top: 1px;
+    width: 20px;
+    text-align: right;
+}
+
+.line-numbers span {
+    counter-increment: linenumber;
+    font-family: monospace;
+    line-height: 21px;
+}
+
+.line-numbers span::before {
+    content: counter(linenumber);
+    display: block;
+    color: #506882;
+}
+
+.line-numbers, textarea {
+    height: 9999px;
+}
+
+/*
 #text_div {
     width: 100%;
     height: 100%;
-    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
-    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
     box-sizing: border-box;
     resize: none;
     min-width: 640px;
     min-height: 480px;
     font-family: mono;
-}
+}*/
 
