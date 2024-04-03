@@ -1,46 +1,173 @@
-#include <httpserver.hpp>
-#include <httpconstants.hpp>
+#include "../include/httpserver.hpp"
+#include "../include/httpmessage.hpp"
 
-#include <stdexcept>
+namespace Http {
 
-HttpServer::HttpServer(const std::string host, std::uint16_t port)
+void info(const char* msg){
+    std::cout << msg << std::endl;
+}
+
+void error(const char* msg){
+    std::cerr << msg << std::endl;
+}
+
+void EventSource::send_event(const std::string& event) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (int client_socket : m_client_sockets) {
+        int bytesSent = send(client_socket, event.c_str(), event.size(), 0);
+        if (bytesSent != event.size()) {
+            error("Error sending event to client");
+        } else {
+            //info("Sent event");
+        }
+    }
+    //info("Free sendEvent Client");
+}
+
+void EventSource::close_connection(){
+    HttpResponse response;
+    response.set_status_code(HttpStatusCode::Ok);
+    response.set_version(HttpVersion::Http_11);
+    response.add_header("Content-Length", "0");
+    response.add_header("Content-Type", "text/plain");
+    std::string close_str = "data: close\n\n"; //response.to_string();
+
+    info("Lock closeEvent connection");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (int client_socket : m_client_sockets) {
+        int bytesSent = send(client_socket, close_str.c_str(), close_str.size(), 0);
+        if (bytesSent != close_str.size()) {
+            error("Error sending event to client");
+        } else {
+            info("Connection closed");
+        }
+    }
+    info("Free closeEvent connection");
+}
+
+void EventSource::add_client(int client_socket) {
+    info("Lock Add Client");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_client_sockets.insert(client_socket);
+    onConnect(client_socket);
+    info("Free Add Client");
+}
+
+void EventSource::remove_client(int client_socket) {
+    info("Lock Remove Client");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_client_sockets.erase(client_socket);
+    onClose(client_socket);
+    info("Free Remove Client");
+}
+
+void EventSource::remove_clients(){
+    info("Lock Remove Clients");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_client_sockets.clear();
+    info("Free Remove Clients");
+}
+
+void EventSource::onConnect(SOCKET client_socket){
+    HttpResponse http_response;
+    http_response.set_status_code(HttpStatusCode::Ok);
+    http_response.set_version(HttpVersion::Http_11);
+    http_response.add_header("Cache-Control", "no-cache");
+    http_response.add_header("Content-Type", "text/event-stream");
+    //http_response.add_header("Content-Length", "0");
+    http_response.add_header("Connection", "keep-alive");
+    std::string response = http_response.to_string();
+    send(client_socket, response.c_str(), response.length(), 0);
+}
+
+void EventSource::onClose(SOCKET client_socket){
+    //http_response.set_status_code(HttpStatusCode::Ok);
+    //http_response.set_version(HttpVersion::Http_11);
+    //http_response.add_header("Cache-Control", "no-cache");
+    //http_response.add_header("Content-Type", "text/plain");
+    //http_response.add_header("Content-Length", "0");
+    //http_response.add_header("Connection", "keep-alive");
+}
+
+Server::Server(const std::string host, int port)
     : m_host(host),
-      m_port(port)
-{
+      m_port(port),
+      onNotFoundCallback(onNotFoundDefaultCallback)
+{}
+
+void Server::start() {
+
+    //m_stop = false;
+    m_status = Status::STARTING;
+    m_serverThread = std::thread(&Server::start_server, this);
 }
 
-HttpServer::~HttpServer() {
-#ifdef _WIN32
-        WSACleanup();
-#endif
+void Server::stop() {
+    if(m_status != Status::RUNNING) return;
+    m_status = Status::STOPPING;
+    //m_stop = true;
+    //close(serverSocket);
+    for(auto es : m_eventSource){
+        es.second->close_connection();
+    }
+
+    if (m_serverThread.joinable()) {
+        info("stopping server...");
+        m_serverThread.join();
+        info("stopped");
+    }
+    m_status = Status::STOPPED;
+
 }
 
-
-void HttpServer::start()
-{
-#ifdef _WIN32
-    initialize_socket();
-#endif
-    resume();
+void Server::register_event(const std::string& uri, EventSource* eventSource) {
+    m_eventSource[uri] = eventSource;
 }
 
-void HttpServer::resume(){
+void Server::register_uri_handler(const std::string& uri, HttpMethod method, const UriHandlerCallback_t cb){
+    m_uri_handlers[uri].insert(std::make_pair(method, std::move(cb)));
+}
+
+void Server::start_server(){
     open_socket();
     bind_socket();
     listen_socket();
 }
 
-void HttpServer::stop()
-{
-    close_socket();
+void Server::add_client(const Client& http_client){
+    // TODO Add client_socket as target to optional event source
+    //SOCKET client_socket = http_client.socket;
+    //sockaddr_in client = http_client.address;
+    static int count = 0;
+    ++count;
+    std::cout << "Called " << count << " times to add request" << std::endl;
+    m_client_requests.emplace_back(std::async(std::launch::async, &Server::handle_client, this, http_client));
+    if (m_client_requests.size() >= CLIENTS_MAX_NUM && m_accepting) {
+        close_socket();
+    }
+    std::cout << m_client_requests.size() << " client(s) connected" << std::endl;
 }
 
-void HttpServer::register_uri_handler(const std::string& uri, HttpMethod method, const HttpUriHandler_t uri_handler){
-    m_uri_handlers[uri].insert(std::make_pair(method, std::move(uri_handler)));
+void Server::clear_clients() {
+    info("Clear clients");
+    std::vector<std::future<void>>::iterator it = m_client_requests.begin();
+
+    while (it != m_client_requests.end()) {
+        auto status = (*it).wait_for(std::chrono::milliseconds(0));
+        if (status == std::future_status::ready) {
+            it = m_client_requests.erase(it);
+        }
+        else {
+            info("Not ready yet");
+            ++it;
+        }
+    }
+    info("cleared");
 }
 
-
-void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
+void Server::handle_client(const Client& http_client) {
+    sockaddr_in client = http_client.address;
+    int client_sock = http_client.socket;
 
     char buf[4096];
     char host[NI_MAXHOST];
@@ -49,26 +176,24 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
     memset(host, 0, NI_MAXHOST);
     memset(service, 0, NI_MAXHOST);
 
-    //std::cout << std::this_thread::get_id() << std::endl;
-
     if (getnameinfo((sockaddr*)&client, sizeof(client), host, NI_MAXHOST, service, NI_MAXSERV, 0) == 0) {
 
         std::cout << host << " connected on port " << service << std::endl;
 
     }
     else {
-
         inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
 
         std::cout << host << " connected on port " << ntohs(client.sin_port) << std::endl;
-
     }
 
-    while (true) {
+
+    while (m_status == Status::RUNNING) {
 
         memset(&buf, 0, 4096);
-
+        info("Receiving...");
         const int bytes_received = recv(client_sock, buf, 4096, 0);
+        info(buf);
 #ifdef _WIN32
         if (bytes_received == SOCKET_ERROR) {
             std::cerr << WSAGetLastError() << std::endl;
@@ -81,55 +206,56 @@ void HttpServer::handle_client(SOCKET client_sock, sockaddr_in client) {
         }
         else if (bytes_received == 0) {
             std::cout << "client disconnected" << std::endl;
+
+            for(const auto& es : m_eventSource){
+                es.second->remove_client(client_sock);
+            }
+            close(client_sock);
+            info("client socket closed");
             break;
         }
         else {
-            std::cout << "send to client" << std::endl;
+            std::cout << "client message received" << std::endl;
             std::ostringstream oss;
             HttpRequest http_request;
             HttpResponse http_response;
             http_request.from_string(std::string(buf));
             int bytes_sent;
-
-            if(!http_request.is_valid()){
-                http_response.set_status_code(HttpStatusCode::BadRequest);
+            auto it = m_eventSource.find(http_request.path());
+            if (it != m_eventSource.end()) {
+                info("Event registration detected");
+                it->second->add_client(client_sock);
+                //it->second->onConnect(client_sock);
+                info("Event registration finished");
+            } else {
+                auto uit = m_uri_handlers.find(http_request.path());
+                if(uit == m_uri_handlers.end()){
+                    onNotFoundCallback(http_request, http_response);
+                    std::string response = http_response.to_string();
+                    send(client_sock, response.c_str(), response.length(), 0);
+                    info("Uri not found/not registered");
+                    info(http_request.path().c_str());
+                    continue;
+                }
+                auto cb = uit->second.find(http_request.method());
+                if(cb == uit->second.end()){
+                    onNotFoundCallback(http_request, http_response);
+                    std::string response = http_response.to_string();
+                    send(client_sock, response.c_str(), response.length(), 0);
+                    info("Method not registered for this uri");
+                    continue;
+                }
+                cb->second(http_request, http_response);
                 std::string response = http_response.to_string();
-                bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
-                std::cout << "Sent " << bytes_sent << " bytes" << std::endl << response << std::endl;
-                continue;
+                send(client_sock, response.c_str(), response.length(), 0);
             }
-
-            auto it = m_uri_handlers.find(http_request.path());
-            if(it == m_uri_handlers.end()){
-                http_response.set_status_code(HttpStatusCode::NotFound);
-                http_response.add_header("Content-Length", "0");
-                std::string response = http_response.to_string();
-                bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
-                std::cout << "Path not registered " << http_request.path() << std::endl;
-                std::cout << "Sent " << bytes_sent << " bytes| length " << response.length() << "bytes| body:\n" << response << std::endl;
-                continue;
-            }
-            auto cit = it->second.find(http_request.method());
-            if(cit == it->second.end()){
-                std::cout << "Method not registered " << Http::Method::to_string(http_request.method()) << std::endl;
-                http_response.set_status_code(HttpStatusCode::MethodNotAllowed);
-                http_response.set_version(HttpVersion::Http_11);
-                std::string response = http_response.to_string();
-                bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
-                continue;
-            }
-
-            cit->second(http_request, http_response);
-
-            const std::string& response = http_response.to_string();
-            bytes_sent = send(client_sock, response.c_str(), response.length(), 0);
-            std::cout << "Sent " << bytes_sent << " bytes| length " << response.length() << std::endl;
         }
+        info("Future loop");
     }
 }
 
 #ifdef _WIN32
-void HttpServer::initialize_socket() {
+void Server::initialize_socket() {
 
     WSAData wsData;
     WORD ver = MAKEWORD(2, 2);
@@ -147,7 +273,8 @@ void HttpServer::initialize_socket() {
 }
 #endif
 
-void HttpServer::bind_socket() {
+void Server::bind_socket() {
+    info("Binding server socket to address");
 
     int keep_alive = 1;
     int re_use = 1;
@@ -185,11 +312,13 @@ void HttpServer::bind_socket() {
         throw std::runtime_error("SOCKET ERROR");
     }
 #endif
+    info("bound");
 }
 
-void HttpServer::open_socket() {
-
+void Server::open_socket() {
+    info("Open server socket...");
     m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    fcntl(m_socket, F_SETFL, O_NONBLOCK);
 
 #ifdef _WIN32
     if (m_socket == INVALID_SOCKET) {
@@ -204,8 +333,10 @@ void HttpServer::open_socket() {
     }
 
     m_accepting = true;
+    info("opened");
 }
-void HttpServer::close_socket() {
+
+void Server::close_socket() {
 
     std::cout << "closing server socket" << std::endl;
 #ifdef _WIN32
@@ -214,32 +345,11 @@ void HttpServer::close_socket() {
     close(m_socket);
 #endif
     m_accepting = false;
+    info("closed");
 }
 
-void HttpServer::clear_clients() {
-
-    std::vector<std::future<void>>::iterator it = m_clients.begin();
-
-    while (it != m_clients.end()) {
-        auto status = (*it).wait_for(std::chrono::milliseconds(0));
-        if (status == std::future_status::ready) {
-            it = m_clients.erase(it);
-        }
-        else {
-            ++it;
-        }
-    }
-}
-
-void HttpServer::add_client(SOCKET client_socket, sockaddr_in& client){
-    m_clients.emplace_back(std::async(std::launch::async, &HttpServer::handle_client, this, client_socket, client));
-    if (m_clients.size() >= CLIENTS_MAX_NUM && m_accepting) {
-        stop();
-    }
-    std::cout << m_clients.size() << " clients connected" << std::endl;
-}
-
-void HttpServer::listen_socket() {
+void Server::listen_socket() {
+    info("Listening on server socket");
 
     if (listen(m_socket, CLIENTS_QUEUE_NUM) == SOCKET_ERROR) {
 #ifdef _WIN32
@@ -257,9 +367,11 @@ void HttpServer::listen_socket() {
 
         std::cout << "accepting for incoming connections on port " << m_port << std::endl;
 
-        while (true) {
+        m_status = Status::RUNNING;
+        while (m_status == Status::RUNNING) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-            if (m_clients.size() < CLIENTS_MAX_NUM && !m_accepting) {
+            if (m_client_requests.size() < CLIENTS_MAX_NUM && !m_accepting) {
 
                 std::cout << "re-opening server socket" << std::endl;
                 //start();
@@ -283,10 +395,10 @@ void HttpServer::listen_socket() {
 #endif
 
                 SOCKET client_sock = accept(m_socket, (sockaddr*)&client, &client_size);
+                //fcntl(client_sock, F_SETFL, O_NONBLOCK);
 
-                if (client_sock == INVALID_SOCKET) {
-
-
+                if (client_sock < 0) {
+                    continue;
 #ifdef _WIN32
                     std::cerr << WSAGetLastError() << std::endl;
                     closesocket(m_socket);
@@ -299,10 +411,21 @@ void HttpServer::listen_socket() {
 
                 }
 
-                //clear_clients(m_clients);
-                add_client(client_sock, client);
-
+                clear_clients();
+                Client http_client(client_sock, client);
+                add_client(http_client);
+                //update();
             }
         }
+        clear_clients();
+        close_socket();
     }
 }
+
+void Server::onNotFoundDefaultCallback(const HttpRequest& http_request, HttpResponse& http_response){
+    http_response.set_status_code(HttpStatusCode::NotFound);
+    http_response.set_version(HttpVersion::Http_11);
+    http_response.add_header("Content-Length", "0");
+}
+
+} // end namespace Http
