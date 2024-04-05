@@ -24,8 +24,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-typedef int SOCKET;
 #define SOCKET_ERROR -1
+typedef int SOCKET;
 #endif
 
 #include "httpmessage.hpp"
@@ -58,6 +58,10 @@ public:
 private:
     std::unordered_set<int> m_client_sockets;
     std::mutex m_mutex;
+    std::vector<std::future<void>> m_message_queue;
+
+    void clear_message_queue();
+    void send_future_event(const std::string& str);
 };
 
 struct Client {

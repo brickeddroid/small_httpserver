@@ -11,26 +11,22 @@ void error(const char* msg){
     std::cerr << msg << std::endl;
 }
 
+
+
 void EventSource::send_event(const std::string& event) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    for (int client_socket : m_client_sockets) {
-        int bytesSent = send(client_socket, event.c_str(), event.size(), 0);
-        if (bytesSent != event.size()) {
-            error("Error sending event to client");
-        } else {
-            //info("Sent event");
-        }
-    }
+    static int count = 0;
+    ++count;
+    std::cout << "Called " << count << " times to add request" << std::endl;
+    m_message_queue.emplace_back(std::async(std::launch::async, &EventSource::send_future_event, this, event));
+    clear_message_queue();
+    std::cout << m_message_queue.size() << " messages in queue" << std::endl;
+
     //info("Free sendEvent Client");
 }
 
 void EventSource::close_connection(){
-    HttpResponse response;
-    response.set_status_code(HttpStatusCode::Ok);
-    response.set_version(HttpVersion::Http_11);
-    response.add_header("Content-Length", "0");
-    response.add_header("Content-Type", "text/plain");
-    std::string close_str = "data: close\n\n"; //response.to_string();
+    // Ugly workaround
+    std::string close_str = "data: close\n\n";
 
     info("Lock closeEvent connection");
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -66,6 +62,35 @@ void EventSource::remove_clients(){
     std::lock_guard<std::mutex> lock(m_mutex);
     m_client_sockets.clear();
     info("Free Remove Clients");
+}
+
+void EventSource::clear_message_queue(){
+    info("Clear message queue");
+    std::vector<std::future<void>>::iterator it = m_message_queue.begin();
+
+    while (it != m_message_queue.end()) {
+        auto status = (*it).wait_for(std::chrono::milliseconds(0));
+        if (status == std::future_status::ready) {
+            it = m_message_queue.erase(it);
+        }
+        else {
+            info("Not ready yet");
+            ++it;
+        }
+    }
+    info("cleared");
+}
+
+void EventSource::send_future_event(const std::string& event){
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (int client_socket : m_client_sockets) {
+        int bytesSent = send(client_socket, event.c_str(), event.size(), 0);
+        if (bytesSent != event.size()) {
+            error("Error sending event to client");
+        } else {
+            //info("Sent event");
+        }
+    }
 }
 
 void EventSource::onConnect(SOCKET client_socket){
