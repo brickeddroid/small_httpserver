@@ -23,7 +23,7 @@
               <div class="line-numbers">
                 <span></span>
               </div>
-              <textarea id="text_div" contenteditable="true"></textarea>
+              <textarea id="text_div" contenteditable="true" spellcheck="false"></textarea>
           </div>
       </main>
       <footer></footer>
@@ -43,12 +43,38 @@
             })
             .catch((err) => {  })
     }
+
+    function getTextWidth(inputText) {
+        // TODO: using css variable to avoid the RY in DRY
+        font = "12px monospace";
+
+        canvas = document.createElement("canvas");
+        context = canvas.getContext("2d");
+        context.font = font;
+        width = context.measureText(inputText).width;
+        return Math.ceil(width);
+    }
+
     function update_line_numbers(textarea){
         const lineNumbers = document.querySelector(".line-numbers");
-        const numberOfLines = textarea.value.split('\n').length;
-        lineNumbers.innerHTML = Array(numberOfLines)
-            .fill('<span></span>')
-            .join('')
+        lineNumbers.innerHTML = "";
+        const lines = textarea.value.split('\n');
+        const numberOfLines = lines.length;
+        for(let idx = 0; idx < numberOfLines; idx++){
+            let span = document.createElement("span");
+
+            span.innerHTML = idx+1;
+            lineNumbers.appendChild(span);
+            if(textarea.clientWidth < getTextWidth(lines[idx])){
+                console.log("IDX " + idx + ": " + textarea.clientWidth + " <> " + getTextWidth(lines[idx]));
+                let additional_lines = Math.ceil(getTextWidth(lines[idx])/textarea.clientWidth) - 1;
+                for(let i = 0; i < additional_lines; i++){
+                    let fillspan = document.createElement("span");
+                    fillspan.innerHTML = '&#8627;';
+                    lineNumbers.appendChild(fillspan);
+                }
+            }
+        };
     }
 
     function init()
@@ -65,7 +91,6 @@
                 response.text().then((data) => {
                     const regex = /(font)/
                     const new_data = data.replace(regex, "<span style='color:red;'>$1</span>$2");
-                    //const textarea = document.querySelector("#text_div");
                     textarea.value = data;
                     update_line_numbers(textarea);
                 });
@@ -73,53 +98,22 @@
             .catch((err) => {  });
     }
 
-/*
-    function getCaretPosition(editableDiv) {
-        var caretPos = 0,
-            sel, range;
-        if (window.getSelection) {
-            sel = window.getSelection();
-            if (sel.rangeCount) {
-            range = sel.getRangeAt(0);
-                if (range.commonAncestorContainer.parentNode == editableDiv) {
-                    caretPos = range.endOffset;
-                }
-            }
-        } else if (document.selection && document.selection.createRange) {
-            range = document.selection.createRange();
-            if (range.parentElement() == editableDiv) {
-                var tempEl = document.createElement("span");
-                editableDiv.insertBefore(tempEl, editableDiv.firstChild);
-                var tempRange = range.duplicate();
-                tempRange.moveToElementText(tempEl);
-                tempRange.setEndPoint("EndToEnd", range);
-                caretPos = tempRange.text.length;
-            }
-        }
-        return caretPos;
-    }
-*/
     const evtSource = new EventSource("event");
     evtSource.onmessage = (event) => {
-        //const newElement = document.createElement("li");
-        //const eventList = document.getElementById("list");
 
         const text_div = document.querySelector("#text_div");
-        //let cpos = cursor_position();
         let start = text_div.selectionStart;
         let end = text_div.selectionEnd;
-        //console.log(cpos);
+
         const len = text_div.value.length;
-        text_div.value = text_div.value.replace(text_div.value[+event.data % len], 'a');
-        //console.log(text_div.innerText[+event.data % len]);
+        text_div.value = text_div.value.replace(text_div.value[+event.data % len], event.data);
+
         document.querySelector("#sse_display").innerHTML = `message: ${event.data}`;
-        //console.log(text_div);
+
         if(document.activeElement === text_div)
             text_div.setSelectionRange(start,end);
-        //text_div.focus();
-        //text_div.selectionStart = start;
-        //text_div.selectionEnd = end;
-        //eventList.appendChild(newElement);
+
+        update_line_numbers(text_div);
     };
     </script>
 </html>
