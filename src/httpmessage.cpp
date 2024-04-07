@@ -48,7 +48,7 @@ void HttpMessage::set_content(const std::string& content){
     m_content = std::move(content);
 }
 
-const std::string& HttpMessage::content(){
+const std::string& HttpMessage::content() const {
     return m_content;
 }
 

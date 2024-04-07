@@ -34,7 +34,7 @@ public:
     void parse_header(const std::string& headers);
 
     void set_content(const std::string& content);
-    const std::string& content();
+    const std::string& content() const;
 
     void set_head_only(bool h_only);
     void set_body_only(bool c_only);
