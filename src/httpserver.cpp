@@ -218,7 +218,7 @@ void Server::handle_client(const Client& http_client) {
         memset(&buf, 0, 4096);
         info("Receiving...");
         const int bytes_received = recv(client_sock, buf, 4096, 0);
-        info(buf);
+
 #ifdef _WIN32
         if (bytes_received == SOCKET_ERROR) {
             std::cerr << WSAGetLastError() << std::endl;
