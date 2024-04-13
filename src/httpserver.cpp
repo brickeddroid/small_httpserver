@@ -165,11 +165,11 @@ void Server::add_client(const Client& http_client){
     //sockaddr_in client = http_client.address;
     static int count = 0;
     ++count;
-    std::cout << "Called " << count << " times to add request" << std::endl;
     m_client_requests.emplace_back(std::async(std::launch::async, &Server::handle_client, this, http_client));
     if (m_client_requests.size() >= CLIENTS_MAX_NUM && m_accepting) {
         close_socket();
     }
+    std::cout << "Called " << count << " times to add request: ";
     std::cout << m_client_requests.size() << " client(s) connected" << std::endl;
 }
 
