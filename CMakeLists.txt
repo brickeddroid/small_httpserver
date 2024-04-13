@@ -2,19 +2,15 @@ cmake_minimum_required(VERSION 3.7)
 
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     project(HttpServer)
-    message("EXTERNAL PROJECT TRIGGERED")
-    include(CTest)
 
     if(HTTP_SERVER_PROJECT_BUILD_TESTING)
-    add_subdirectory(test)
-    # or alternatively, `include(CTest)`, if you want to use CDash
-    # https://cmake.org/cmake/help/book/mastering-cmake/chapter/CDash.html
+        add_subdirectory(test)
     endif()
 
-    if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-        add_subdirectory(unittests)
-    endif()
+    #if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    #endif()
     enable_testing()
+    add_subdirectory(unittests)
 
 endif()
 
